@@ -54,21 +54,3 @@ BEA_TOKEN=your_real_token_here
 
 Restart the app after updating env vars.
 
-## GitHub Actions
-
-- CI workflow: `.github/workflows/ci.yml`
-  - Dependency install
-  - Python compile checks
-  - App smoke startup + `/health` check
-- CD workflow: `.github/workflows/deploy.yml`
-  - Manual trigger
-  - Placeholder only (safe to keep if doing GitHub-only)
-
-## Before pushing public
-
-1. Rotate existing BEA token if it was ever stored in local plaintext.
-2. Confirm no secrets are staged:
-   - `git status`
-   - `git diff --cached`
-3. Optional local scan:
-   - `rg "BEA_TOKEN=|mc_[A-Za-z0-9]+" .`
