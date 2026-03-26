@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="./" />
+  <title>Whale Absorption Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --ui: "Inter", sans-serif; --data: "JetBrains Mono", monospace; }
+    html, body { margin: 0; height: 100%; background: #060e1a; color: #d8e3ef; font-family: var(--ui); }
+    .page { display: flex; flex-direction: column; height: 100vh; }
+    .bar { display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #1f3147; padding: 8px 12px; font-size: 11px; }
+    .bar input, .bar select { font: inherit; background: #0f1a2b; color: #e8f0f7; border: 1px solid #29405a; border-radius: 4px; padding: 4px 8px; }
+    .status { margin-left: auto; color: #79df9f; font-family: var(--data); font-variant-numeric: tabular-nums; }
+    .settings { margin: 8px 12px 0; border: 1px solid #2a3a56; background: #1a2337; border-radius: 8px; padding: 8px 10px; font-size: 11px; }
+    .matrix {
+      margin: 8px 12px 0;
+      border: 1px solid #263950;
+      border-radius: 8px;
+      padding: 8px;
+      background: #111a2b;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    .matrix.hidden { display: none; }
+    .mcell {
+      border: 1px solid #2b4059;
+      border-radius: 6px;
+      padding: 7px;
+      font-size: 10px;
+      background: #152137;
+    }
+    .mcell .k { color: #90a8bf; letter-spacing: 0.03em; }
+    .mcell .v { margin-top: 4px; font-family: var(--data); font-size: 15px; font-variant-numeric: tabular-nums; }
+    .ghost-btn {
+      border: 1px solid #3a4f69;
+      border-radius: 4px;
+      background: #1a273b;
+      color: #d6e3ef;
+      font: inherit;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+    .banner {
+      margin: 8px 12px 0;
+      border: 1px solid #344862;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      background: #162338;
+      color: #d8e3ef;
+    }
+    .banner-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .side-chip {
+      font-family: var(--data);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      border: 1px solid #425773;
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: #dbe8f5;
+      background: #1a2a40;
+      white-space: nowrap;
+    }
+    .side-chip.long {
+      border-color: #8a6d2d;
+      color: #f5dd9e;
+      background: #2f2a1a;
+    }
+    .side-chip.short {
+      border-color: #5d7a3a;
+      color: #b9e590;
+      background: #1f2e1f;
+    }
+    .banner.state-BUILDING { border-color: #5d6a7d; color: #c9d3dd; }
+    .banner.state-IDLE { border-color: #4a5a68; color: #a8b8c8; }
+    .banner.state-ABSORBING { border-color: #8c7a33; color: #f0df9d; }
+    .banner.state-CONFIRMED_FAILURE { border-color: #8354a9; color: #e8c5ff; background: #251f36; }
+    .heat {
+      margin: 8px 12px 0;
+      border: 1px solid #22364d;
+      border-radius: 8px;
+      background: #0d1727;
+      padding: 8px;
+    }
+    .control-pane {
+      margin: 8px 12px 0;
+      border: 1px solid #2a3f58;
+      border-radius: 8px;
+      background: #101a2b;
+      padding: 8px;
+      font-size: 11px;
+    }
+    .control-title { color: #a2b6cb; margin-bottom: 6px; letter-spacing: 0.03em; }
+    .control-track {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .whale-pointer {
+      position: absolute;
+      top: -17px;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: left 180ms ease;
+      font-size: 16px;
+      line-height: 1;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+    }
+    .side-btn {
+      text-align: center;
+      border: 1px solid #3a4f69;
+      border-radius: 6px;
+      padding: 7px 8px;
+      font-family: var(--data);
+      font-size: 11px;
+      color: #d6e3ef;
+      background: #1a273b;
+    }
+    .side-btn.long.active {
+      border-color: #8a6d2d;
+      background: #2e291a;
+      color: #f6dda1;
+    }
+    .side-btn.short.active {
+      border-color: #4f7b39;
+      background: #1f2f21;
+      color: #b8e78e;
+    }
+    .control-note {
+      margin-top: 6px;
+      color: #c9d8e5;
+      font-family: var(--data);
+      font-size: 10px;
+    }
+    .levels-note {
+      margin-top: 4px;
+      color: #9fd4ff;
+      font-family: var(--data);
+      font-size: 10px;
+      border-top: 1px solid #273b53;
+      padding-top: 5px;
+    }
+    .liquid-rail {
+      margin: 8px 12px 0;
+      border: 1px solid #2a3f58;
+      border-radius: 8px;
+      background: #0f1a2a;
+      padding: 8px;
+    }
+    .liquid-rail h4 {
+      margin: 0 0 6px 0;
+      font-size: 10px;
+      color: #a3b8cd;
+      letter-spacing: 0.04em;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 44px;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-family: var(--data);
+      font-size: 10px;
+      color: #cad8e6;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-row:first-of-type { margin-top: 0; }
+    .mtrack {
+      position: relative;
+      height: 8px;
+      border-radius: 999px;
+      border: 1px solid #2f4560;
+      background: #16263b;
+      overflow: hidden;
+    }
+    .mfill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      border-radius: 999px;
+      transition: width 180ms linear;
+      will-change: width;
+    }
+    .mfill::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 30px;
+      right: -12px;
+      background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.45), rgba(255,255,255,0));
+      opacity: 0.45;
+      animation: rail-glide 1.2s linear infinite;
+      pointer-events: none;
+    }
+    .mfill.aggr { background: linear-gradient(90deg, #3d78d1, #7ec5ff); }
+    .mfill.squeeze { background: linear-gradient(90deg, #f2c84f, #ffd97c); }
+    .mfill.confirm { background: linear-gradient(90deg, #d44d4d, #ff8d8d); }
+    .mfill.conviction { background: linear-gradient(90deg, #55b871, #9af0b1); }
+    .mfill.hold { background: linear-gradient(90deg, #6a9fd4, #a8d4ff); }
+    .mfill.risk { background: linear-gradient(90deg, #c97a3a, #f0b070); }
+    @keyframes rail-glide {
+      from { transform: translateX(-34px); }
+      to { transform: translateX(56px); }
+    }
+    .level-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid #3a4f69;
+      margin-right: 6px;
+      margin-top: 4px;
+      font-family: var(--data);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .level-badge.confirm {
+      border-color: #4f7b39;
+      color: #b8e78e;
+      background: #1f2f21;
+    }
+    .level-badge.fail {
+      border-color: #8a4a4a;
+      color: #ffb1a7;
+      background: #322022;
+    }
+    .heat h4 { margin: 0 0 6px 0; font-size: 10px; color: #93a8be; letter-spacing: 0.04em; }
+    .heat-track { display: flex; gap: 4px; height: 10px; }
+    .heat-bar { flex: 1; border-radius: 999px; background: #23334a; opacity: 0.6; }
+    .heat-bar.active { opacity: 1; }
+    .settings-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .settings-row:first-child { margin-top: 0; }
+    .settings input[type="range"] { width: min(320px, 45vw); accent-color: #58aa76; }
+    .pill { border: 1px solid #3b4d6e; background: #2a3348; color: #d7e3ef; border-radius: 4px; padding: 3px 8px; cursor: pointer; font: inherit; }
+    .pill.active { background: #5f6b42; border-color: #9fb46a; color: #fff; }
+    .attractor-stage {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      margin: 8px 12px;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .theater-panel {
+      flex: 1.05;
+      min-width: 0;
+      border: 1px solid #24364f;
+      border-radius: 8px;
+      background: #0a1422;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .theater-head {
+      padding: 8px 10px 6px;
+      border-bottom: 1px solid rgba(54, 80, 110, 0.45);
+      background: linear-gradient(180deg, rgba(22, 38, 58, 0.55), rgba(10, 20, 34, 0.2));
+    }
+    .theater-head h3 {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: #e8c27a;
+    }
+    #scene-narrative {
+      margin: 0;
+      font-family: var(--data);
+      font-size: 10px;
+      color: #b4c8dc;
+      line-height: 1.45;
+    }
+    .scene-rails {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(36, 56, 79, 0.45);
+      background: #0d1828;
+    }
+    .scene-rails h4 {
+      margin: 0 0 6px 0;
+      font-size: 9px;
+      color: #8fa6bc;
+      letter-spacing: 0.04em;
+    }
+    .scene-rails .metric-row { font-size: 9px; }
+    .scene-rails .metric-row span:first-child { min-width: 108px; }
+    .orb-panel {
+      flex: 0.95;
+      min-width: 200px;
+      position: relative;
+      border: 1px solid #24364f;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #091423;
+    }
+    #attractor-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .dom-meta {
+      padding: 6px 10px;
+      font-family: var(--data);
+      font-size: 9px;
+      color: #8fa9bf;
+      border-bottom: 1px solid rgba(36, 56, 79, 0.45);
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+    .dom-head {
+      display: grid;
+      grid-template-columns: 72px 1fr 44px 44px 22px;
+      gap: 4px;
+      padding: 4px 8px;
+      font-size: 9px;
+      color: #7a92a8;
+      letter-spacing: 0.03em;
+      border-bottom: 1px solid rgba(36, 56, 79, 0.55);
+      font-family: var(--data);
+    }
+    .dom-scroll {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 120px;
+      scrollbar-width: thin;
+    }
+    .dom-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 44px 44px 22px;
+      gap: 4px;
+      align-items: center;
+      padding: 3px 8px;
+      font-family: var(--data);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      color: #d8e3ef;
+      border-bottom: 1px solid rgba(28, 44, 62, 0.5);
+    }
+    .dom-row:last-child { border-bottom: 0; }
+    .dom-row.anchor {
+      background: rgba(88, 140, 200, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(120, 170, 230, 0.25);
+    }
+    .dom-row.marker-confirm {
+      box-shadow: inset 2px 0 0 0 rgba(106, 200, 120, 0.85);
+    }
+    .dom-row.marker-fail {
+      box-shadow: inset 2px 0 0 0 rgba(230, 96, 96, 0.85);
+    }
+    .dom-row.marker-zone {
+      box-shadow: inset 0 0 0 1px rgba(242, 200, 79, 0.45);
+    }
+    .dom-price { color: #e8f2fa; }
+    .dom-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-height: 22px;
+      justify-content: center;
+    }
+    .dom-bar {
+      height: 8px;
+      border-radius: 2px;
+      background: #1a2a40;
+      overflow: hidden;
+      position: relative;
+    }
+    .dom-bar > i {
+      display: block;
+      height: 100%;
+      border-radius: 2px;
+      max-width: 100%;
+    }
+    .dom-bar.sell > i { background: linear-gradient(90deg, #5a2a32, #c94c58); }
+    .dom-bar.buy > i { background: linear-gradient(90deg, #2a5a3a, #4caf68); }
+    .dom-mini { font-size: 9px; color: #8fa9bf; text-align: right; }
+    .bottom-left {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      font-family: var(--data);
+      font-size: 10px;
+      color: #9fb2c5;
+      background: rgba(7, 14, 24, 0.62);
+      border: 1px solid rgba(56, 78, 102, 0.65);
+      border-radius: 6px;
+      padding: 7px 9px;
+      white-space: pre-line;
+      line-height: 1.35;
+    }
+    .foot { border-top: 1px solid #24364f; padding: 9px 12px; display: flex; gap: 16px; font-family: var(--data); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .muted { color: #90a5ba; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="bar">
+      <span>Symbol</span>
+      <input id="symbol" value="BTC-USD" size="10" />
+      <span>TF</span>
+      <select id="tf">
+        <option value="5m" selected>5m</option>
+        <option value="12m">12m</option>
+        <option value="24m">24m</option>
+        <option value="1h">1h</option>
+      </select>
+      <span>Window</span><span id="window-val" class="muted">5m</span>
+      <button id="analytics-toggle" class="ghost-btn" type="button">Show Analytics</button>
+      <span id="status" class="status">Connecting…</span>
+    </div>
+
+    <div class="settings">
+      <div class="settings-row">
+        <span>Min Burst</span><input id="min-burst" type="range" min="250000" max="5000000" step="50000" value="1000000" />
+        <span id="min-burst-val">$1.0M</span>
+      </div>
+      <div class="settings-row">
+        <span>Source</span>
+        <button class="pill active" data-sources="">ALL SOURCES</button>
+        <button class="pill" data-sources="bea">BEA ONLY</button>
+      </div>
+    </div>
+    <div id="matrix" class="matrix hidden">
+      <div class="mcell"><div class="k">FLOW PRESSURE</div><div id="m-flow" class="v">0</div></div>
+      <div class="mcell"><div class="k">RESPONSE EFFICIENCY</div><div id="m-resp" class="v">0</div></div>
+      <div class="mcell"><div class="k">VENUE AGREEMENT</div><div id="m-venue" class="v">0</div></div>
+      <div class="mcell"><div class="k">FAILURE CONFIRMATION</div><div id="m-fail" class="v">0</div></div>
+    </div>
+    <div id="banner" class="banner state-BUILDING">
+      <div class="banner-top">
+        <span id="banner-msg">Absorption is building but not confirmed yet.</span>
+        <span id="side-chip" class="side-chip">SIDE: NEUTRAL</span>
+      </div>
+      <div class="muted">Long-side absorption = buyers absorbed. Short-side absorption = sellers absorbed.</div>
+    </div>
+    <div class="heat">
+      <h4>ABSORPTION HEAT STRIP (GREEN -> YELLOW -> RED)</h4>
+      <div id="heat-track" class="heat-track"></div>
+    </div>
+    <div class="control-pane">
+      <div class="control-title">WHALE CONTROL INDICATION</div>
+      <div class="control-track">
+        <span id="whale-pointer" class="whale-pointer">🐋</span>
+        <div id="btn-long" class="side-btn long">LONG CONTROL</div>
+        <div id="btn-short" class="side-btn short">SHORT CONTROL</div>
+      </div>
+      <div id="control-note" class="control-note">Neutral flow. No side is controlling absorption.</div>
+      <div class="levels-note">
+        <span id="confirm-badge" class="level-badge confirm">Confirmation: n/a</span>
+        <span id="fail-badge" class="level-badge fail">Failure: n/a</span>
+      </div>
+      <div id="levels-note" class="levels-note" style="margin-top:2px;border-top:0;padding-top:0">Side: n/a</div>
+    </div>
+
+    <div class="liquid-rail">
+      <h4>LIQUID METRICS RAIL</h4>
+      <div class="metric-row">
+        <span>Aggression</span>
+        <div class="mtrack"><div id="rail-aggr" class="mfill aggr"></div></div>
+        <span id="rail-aggr-v">0</span>
+      </div>
+      <div class="metric-row">
+        <span>Squeeze</span>
+        <div class="mtrack"><div id="rail-squeeze" class="mfill squeeze"></div></div>
+        <span id="rail-squeeze-v">0</span>
+      </div>
+      <div class="metric-row">
+        <span>Confirmation</span>
+        <div class="mtrack"><div id="rail-confirm" class="mfill confirm"></div></div>
+        <span id="rail-confirm-v">0</span>
+      </div>
+      <div class="metric-row">
+        <span>Conviction</span>
+        <div class="mtrack"><div id="rail-conviction" class="mfill conviction"></div></div>
+        <span id="rail-conviction-v">0</span>
+      </div>
+    </div>
+
+    <div class="attractor-stage">
+      <div class="theater-panel">
+        <div class="theater-head">
+          <h3>ABSORPTION THEATER V2</h3>
+          <p id="scene-narrative">Waiting for absorption context…</p>
+        </div>
+        <div class="scene-rails">
+          <h4>SCENE METRICS</h4>
+          <div class="metric-row">
+            <span>Aggression</span>
+            <div class="mtrack"><div id="scene-rail-aggr" class="mfill aggr"></div></div>
+            <span id="scene-rail-aggr-v">0</span>
+          </div>
+          <div class="metric-row">
+            <span>Hold Quality</span>
+            <div class="mtrack"><div id="scene-rail-hold" class="mfill hold"></div></div>
+            <span id="scene-rail-hold-v">0</span>
+          </div>
+          <div class="metric-row">
+            <span>Failure Confirm</span>
+            <div class="mtrack"><div id="scene-rail-fail" class="mfill confirm"></div></div>
+            <span id="scene-rail-fail-v">0</span>
+          </div>
+          <div class="metric-row">
+            <span>Continuation Risk</span>
+            <div class="mtrack"><div id="scene-rail-risk" class="mfill risk"></div></div>
+            <span id="scene-rail-risk-v">0</span>
+          </div>
+        </div>
+        <div id="dom-meta" class="dom-meta">Loading ladder…</div>
+        <div class="dom-head">
+          <span>PRICE</span>
+          <span>FLOW</span>
+          <span style="text-align:right">SELL</span>
+          <span style="text-align:right">BUY</span>
+          <span style="text-align:right">D/H</span>
+        </div>
+        <div id="dom-ladder" class="dom-scroll"></div>
+      </div>
+      <div class="orb-panel">
+        <canvas id="attractor-canvas"></canvas>
+        <div id="attractor-meta" class="bottom-left">state: BUILDING</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div id="f-events">5m Events 0</div>
+      <div id="f-high">High 0</div>
+      <div id="f-confirmed">Confirmed 0</div>
+      <div id="f-score">Avg 0</div>
+      <div id="f-notional">Notional $0</div>
+    </div>
+  </div>
+  <script type="module" src="./absorption.js"></script>
+</body>
+</html>

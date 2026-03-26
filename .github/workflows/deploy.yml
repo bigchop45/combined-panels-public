@@ -1,0 +1,30 @@
+name: Deploy (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Deployment target"
+        required: true
+        default: "aws-prod"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare deploy package
+        run: |
+          tar -czf combined_panels_public.tar.gz \
+            combined_panels \
+            tape_standalone \
+            whale_absorption_standalone
+
+      - name: Deploy placeholder
+        run: |
+          echo "Manual deploy workflow created."
+          echo "Next step: add SSH/SCP commands using GitHub Secrets:"
+          echo "AWS_HOST, AWS_USER, AWS_SSH_KEY, AWS_TARGET_DIR"
+          echo "Then restart your systemd service on target host."

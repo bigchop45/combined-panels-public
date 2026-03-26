@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="./" />
+  <title>Combined Panels Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #060f1b;
+      --panel-head: #0c1828;
+      --border: #1e2d42;
+      --text: #c5d4e2;
+      --muted: #6a8298;
+      --accent: #58aa76;
+      --accent-soft: #2d6846;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", system-ui, sans-serif;
+      font-size: 12px;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      min-height: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: #0a1420;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .topbar nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .topbar button {
+      border: 1px solid #36506f;
+      border-radius: 4px;
+      background: #122236;
+      color: #cbe0f2;
+      padding: 3px 8px;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .topbar button:hover {
+      border-color: #4d6a8b;
+      background: #17304a;
+    }
+
+    .topbar a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 11px;
+    }
+
+    .topbar a:hover { text-decoration: underline; }
+
+    .workspace-viewport {
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      overflow: auto;
+      background:
+        linear-gradient(transparent 31px, rgba(32, 49, 72, 0.25) 32px),
+        linear-gradient(90deg, transparent 31px, rgba(32, 49, 72, 0.25) 32px);
+      background-size: 32px 32px, 32px 32px;
+      background-color: #071120;
+    }
+
+    .workspace {
+      position: relative;
+      width: 2200px;
+      height: 1400px;
+      min-width: 100%;
+      min-height: 100%;
+    }
+
+    .status {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      padding: 8px 10px;
+      border: 1px solid #2e415c;
+      border-radius: 6px;
+      background: rgba(9, 20, 33, 0.85);
+      color: #8ea8bf;
+      font-size: 11px;
+      max-width: min(820px, 92vw);
+      z-index: 4000;
+      white-space: pre-wrap;
+    }
+
+    .module {
+      position: absolute;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      min-width: 360px;
+      min-height: 260px;
+      box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .module.active {
+      border-color: var(--accent-soft);
+      box-shadow: 0 0 0 1px rgba(88, 170, 118, 0.35), 0 12px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .module-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      height: 34px;
+      background: var(--panel-head);
+      border-bottom: 1px solid var(--border);
+      cursor: move;
+      user-select: none;
+    }
+
+    .module-title {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .module-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .module-frame-wrap {
+      position: absolute;
+      inset: 35px 0 0 0;
+    }
+
+    .module iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #060e1a;
+    }
+
+    .resize-handle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 16px;
+      height: 16px;
+      cursor: nwse-resize;
+      background:
+        linear-gradient(135deg, transparent 0 40%, rgba(120, 156, 192, 0.7) 40% 48%, transparent 48% 62%, rgba(120, 156, 192, 0.7) 62% 70%, transparent 70%);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>Combined Module Workspace</h1>
+      <span class="muted">draggable + resizable modules · scroll for depth · persistent layout</span>
+      <nav id="module-links"></nav>
+      <button id="reset-layout" type="button" title="Reset all modules to default positions">Reset Layout</button>
+      <nav>
+        <a href="/health" target="_blank" rel="noopener">Health</a>
+      </nav>
+    </header>
+
+    <div id="workspace-viewport" class="workspace-viewport">
+      <div id="workspace" class="workspace"></div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const LAYOUT_KEY = "combined_panels.layout.v1";
+
+      function apiUrl(path) {
+        const p = String(path || "").replace(/^\/+/, "");
+        try {
+          return new URL(p, document.baseURI).href;
+        } catch {
+          return `/${p}`;
+        }
+      }
+      const workspace = document.getElementById("workspace");
+      const linksEl = document.getElementById("module-links");
+      const resetBtn = document.getElementById("reset-layout");
+      let modules = [];
+      let zCounter = 2;
+      let moduleMeta = [];
+
+      function bringToFront(el) {
+        zCounter += 1;
+        el.style.zIndex = String(zCounter);
+        for (const m of modules) m.classList.toggle("active", m === el);
+      }
+
+      function pxToNum(value) {
+        return Number(String(value || "").replace("px", "")) || 0;
+      }
+
+      function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+      }
+
+      function loadSavedLayout() {
+        try {
+          const raw = localStorage.getItem(LAYOUT_KEY);
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== "object") return {};
+          return parsed;
+        } catch {
+          return {};
+        }
+      }
+
+      function saveLayout() {
+        const out = {};
+        for (const m of modules) {
+          const id = m.dataset.moduleId;
+          if (!id) continue;
+          out[id] = {
+            x: pxToNum(m.style.left),
+            y: pxToNum(m.style.top),
+            w: pxToNum(m.style.width),
+            h: pxToNum(m.style.height),
+            z: Number(m.style.zIndex || 1),
+          };
+        }
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(out));
+      }
+
+      function resizeWorkspaceIfNeeded() {
+        let maxRight = 1400;
+        let maxBottom = 900;
+        for (const m of modules) {
+          const r = pxToNum(m.style.left) + pxToNum(m.style.width) + 48;
+          const b = pxToNum(m.style.top) + pxToNum(m.style.height) + 48;
+          if (r > maxRight) maxRight = r;
+          if (b > maxBottom) maxBottom = b;
+        }
+        workspace.style.width = `${Math.max(maxRight, window.innerWidth - 32)}px`;
+        workspace.style.height = `${Math.max(maxBottom, window.innerHeight - 90)}px`;
+      }
+
+      function addStatus(message) {
+        const box = document.createElement("div");
+        box.className = "status";
+        box.textContent = message;
+        workspace.appendChild(box);
+      }
+
+      function makeModuleElement(mod, layoutOverride) {
+        const d = mod.default_layout || {};
+        const x = Number(layoutOverride?.x ?? d.x ?? 24);
+        const y = Number(layoutOverride?.y ?? d.y ?? 24);
+        const w = Number(layoutOverride?.w ?? d.w ?? 980);
+        const h = Number(layoutOverride?.h ?? d.h ?? 700);
+        const title = String(mod.title || mod.module_id || "MODULE").toUpperCase();
+        const framePath = String(mod.url || `${String(mod.mount_path || "").replace(/^\/+/, "")}/`);
+        const frameUrl = apiUrl(framePath);
+        const mountLabel = String(mod.mount_path || "/");
+
+        const section = document.createElement("section");
+        section.className = "module";
+        section.dataset.moduleId = String(mod.module_id || "");
+        section.style.left = `${x}px`;
+        section.style.top = `${y}px`;
+        section.style.width = `${Math.max(360, w)}px`;
+        section.style.height = `${Math.max(260, h)}px`;
+
+        section.innerHTML = `
+          <div class="module-header">
+            <div class="module-title">${title}</div>
+            <div class="module-meta">${mountLabel}/</div>
+          </div>
+          <div class="module-frame-wrap">
+            <iframe src="${frameUrl}" title="${title}"></iframe>
+          </div>
+          <div class="resize-handle" title="Resize module"></div>
+        `;
+        return section;
+      }
+
+      function renderModuleLinks(mods) {
+        linksEl.innerHTML = "";
+        for (const mod of mods) {
+          const a = document.createElement("a");
+          a.href = String(mod.url || `${mod.mount_path || "/"}/`);
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = `Open ${mod.title || mod.module_id}`;
+          linksEl.appendChild(a);
+        }
+      }
+
+      function wireDrag(moduleEl) {
+        const header = moduleEl.querySelector(".module-header");
+        if (!header) return;
+        header.addEventListener("pointerdown", (ev) => {
+          if (ev.button !== 0) return;
+          const target = ev.target;
+          if (target && target.classList && target.classList.contains("resize-handle")) return;
+          bringToFront(moduleEl);
+          const startX = ev.clientX;
+          const startY = ev.clientY;
+          const startLeft = pxToNum(moduleEl.style.left);
+          const startTop = pxToNum(moduleEl.style.top);
+
+          header.setPointerCapture(ev.pointerId);
+
+          function onMove(mev) {
+            const nextLeft = clamp(startLeft + (mev.clientX - startX), 0, 20000);
+            const nextTop = clamp(startTop + (mev.clientY - startY), 0, 20000);
+            moduleEl.style.left = `${nextLeft}px`;
+            moduleEl.style.top = `${nextTop}px`;
+            resizeWorkspaceIfNeeded();
+          }
+
+          function onUp(uev) {
+            header.releasePointerCapture(uev.pointerId);
+            header.removeEventListener("pointermove", onMove);
+            header.removeEventListener("pointerup", onUp);
+            header.removeEventListener("pointercancel", onUp);
+            resizeWorkspaceIfNeeded();
+            saveLayout();
+          }
+
+          header.addEventListener("pointermove", onMove);
+          header.addEventListener("pointerup", onUp);
+          header.addEventListener("pointercancel", onUp);
+        });
+      }
+
+      function wireResize(moduleEl) {
+        const handle = moduleEl.querySelector(".resize-handle");
+        if (!handle) return;
+        handle.addEventListener("pointerdown", (ev) => {
+          if (ev.button !== 0) return;
+          bringToFront(moduleEl);
+          ev.preventDefault();
+          const startX = ev.clientX;
+          const startY = ev.clientY;
+          const startW = pxToNum(moduleEl.style.width);
+          const startH = pxToNum(moduleEl.style.height);
+          const minW = 360;
+          const minH = 260;
+
+          handle.setPointerCapture(ev.pointerId);
+
+          function onMove(mev) {
+            const nextW = Math.max(minW, startW + (mev.clientX - startX));
+            const nextH = Math.max(minH, startH + (mev.clientY - startY));
+            moduleEl.style.width = `${nextW}px`;
+            moduleEl.style.height = `${nextH}px`;
+            resizeWorkspaceIfNeeded();
+          }
+
+          function onUp(uev) {
+            handle.releasePointerCapture(uev.pointerId);
+            handle.removeEventListener("pointermove", onMove);
+            handle.removeEventListener("pointerup", onUp);
+            handle.removeEventListener("pointercancel", onUp);
+            resizeWorkspaceIfNeeded();
+            saveLayout();
+          }
+
+          handle.addEventListener("pointermove", onMove);
+          handle.addEventListener("pointerup", onUp);
+          handle.addEventListener("pointercancel", onUp);
+        });
+      }
+
+      function wireAllModules() {
+        modules.forEach((m, i) => {
+          m.style.zIndex = String(i + 1);
+          wireDrag(m);
+          wireResize(m);
+          m.addEventListener("pointerdown", () => {
+            bringToFront(m);
+            saveLayout();
+          });
+        });
+      }
+
+      async function loadModules() {
+        let res;
+        try {
+          res = await fetch(apiUrl("api/modules"));
+        } catch (e) {
+          addStatus(`Failed to load modules.\n${String(e)}`);
+          return;
+        }
+        if (!res.ok) {
+          addStatus(`Failed to load modules.\nHTTP ${res.status}\nIf you just updated code, restart combined_panels server.`);
+          return;
+        }
+        const data = await res.json();
+        moduleMeta = Array.isArray(data.modules) ? data.modules : [];
+        const errors = Array.isArray(data.errors) ? data.errors : [];
+        if (!moduleMeta.length) {
+          addStatus("No modules are currently loaded.");
+        }
+        if (errors.length) {
+          addStatus(`Some modules failed to load:\n${errors.map((e) => `- ${e.module_id}: ${e.error}`).join("\n")}`);
+        }
+
+        const saved = loadSavedLayout();
+        workspace.innerHTML = "";
+        for (const mod of moduleMeta) {
+          const el = makeModuleElement(mod, saved[mod.module_id]);
+          workspace.appendChild(el);
+        }
+        modules = Array.from(workspace.querySelectorAll(".module"));
+        renderModuleLinks(moduleMeta);
+        wireAllModules();
+        resizeWorkspaceIfNeeded();
+      }
+
+      resetBtn.addEventListener("click", () => {
+        localStorage.removeItem(LAYOUT_KEY);
+        loadModules();
+      });
+
+      loadModules();
+      window.addEventListener("resize", resizeWorkspaceIfNeeded);
+    })();
+  </script>
+</body>
+</html>

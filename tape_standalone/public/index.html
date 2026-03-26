@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="./" />
+  <title>Tape — Multi Source</title>
+  <style>
+    :root {
+      --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-data: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #060e1a;
+      font-family: var(--font-ui);
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+    }
+    .tape-page { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+    .tape-bar {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #6a8298;
+      border-bottom: 1px solid #1e2d42;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+    .tape-bar .err { color: #d03540; }
+    .tape-bar .ok { color: #00b868; }
+    .badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+    .badge-toggle {
+      background: #2a3348;
+      border: 1px solid #3a4a67;
+      color: #d7e3ef;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 10px;
+      padding: 3px 8px;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .badge-toggle .chev {
+      display: inline-block;
+      margin-left: 6px;
+      transition: transform 160ms ease;
+    }
+    .badges-wrap.collapsed .badge-toggle .chev { transform: rotate(-90deg); }
+    .badges-pop {
+      flex-basis: 100%;
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+      max-height: 72px;
+      opacity: 1;
+      overflow: hidden;
+      transition: max-height 180ms ease, opacity 120ms ease, margin-top 120ms ease;
+    }
+    .badges-wrap.collapsed .badges-pop {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      pointer-events: none;
+    }
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid #2b3a55;
+      color: #c5d4e2;
+      background: #162033;
+      white-space: nowrap;
+      font-family: var(--font-data);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .badge.ok { border-color: #1d6a46; background: #113125; color: #7ee3a9; }
+    .badge.stale { border-color: #705a1d; background: #352a11; color: #f0d27a; }
+    .badge.err { border-color: #6f2230; background: #3a1620; color: #ff98a9; }
+    .badge.off { opacity: 0.55; }
+    .settings {
+      flex: 0 0 auto;
+      margin: 8px 12px 0;
+      background: #1a2337;
+      border: 1px solid #2a3a56;
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: #c8d4e0;
+      font-size: 11px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+    }
+    .settings-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .settings-toggle {
+      background: #2a3348;
+      border: 1px solid #3a4a67;
+      color: #d7e3ef;
+      border-radius: 6px;
+      font: inherit;
+      padding: 5px 10px;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+    }
+    .settings-toggle:hover { border-color: #4d6388; }
+    .settings-toggle .chev {
+      display: inline-block;
+      margin-left: 8px;
+      transition: transform 160ms ease;
+    }
+    .settings.collapsed .settings-toggle .chev { transform: rotate(-90deg); }
+    .settings-body {
+      margin-top: 8px;
+      overflow: hidden;
+      transition: max-height 180ms ease, opacity 120ms ease;
+      max-height: 260px;
+      opacity: 1;
+    }
+    .settings.collapsed .settings-body {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      pointer-events: none;
+    }
+    .settings-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .settings-title { font-weight: 700; letter-spacing: 0.04em; }
+    .threshold {
+      color: #ffffff;
+      font-weight: 700;
+      min-width: 78px;
+      text-align: right;
+      font-family: var(--font-data);
+      font-variant-numeric: tabular-nums;
+    }
+    .settings input[type="range"] { width: min(520px, 70vw); accent-color: #53a36f; }
+    .preset {
+      background: #3f6d52;
+      color: #eaf6ef;
+      border: 0;
+      border-radius: 4px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .preset.active { background: #57a56f; color: #08140d; font-weight: 700; }
+    .marks { margin-top: 6px; color: #8fa2b8; font-size: 10px; }
+    .marks span { display: inline-block; min-width: 74px; }
+    .modebtn {
+      background: #2a3348;
+      border: 1px solid #3a4a67;
+      color: #d7e3ef;
+      border-radius: 4px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+    .modebtn.active { background: #4f6e9f; border-color: #78a2de; color: #fff; }
+    .aggbtn {
+      background: #2a3348;
+      border: 1px solid #3a4a67;
+      color: #d7e3ef;
+      border-radius: 4px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+    .aggbtn.active { background: #54688f; border-color: #8ca7d8; color: #fff; }
+    .srcbtn {
+      background: #2a3348;
+      border: 1px solid #3a4a67;
+      color: #d7e3ef;
+      border-radius: 4px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+    .srcbtn.active { background: #5f6b42; border-color: #9fb46a; color: #fff; }
+    .tiny {
+      font-size: 10px;
+      color: #9db0c3;
+    }
+    #tape-wrap { flex: 1; overflow: hidden; min-height: 0; }
+    .tape-spacer {
+      height: 8px;
+      flex: 0 0 auto;
+    }
+    #tape-canvas { display: block; width: 100%; height: 100%; }
+    .tape-foot {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid #24374f;
+      font-size: 12px;
+      text-align: center;
+      font-family: var(--font-data);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .tape-foot .buy { color: #00b868; }
+    .tape-foot .cvd { color: #38b6f0; }
+    .tape-foot .sell { color: #d03540; }
+    .dom-wrap {
+      padding: 0 12px 10px;
+      border-top: 1px solid #1b2b3f;
+      background: #060e1a;
+    }
+    .dom-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #8ca2b7;
+      margin: 7px 0 6px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+    }
+    .dom-head #dom-label {
+      color: #8de3b4;
+      transition: color 120ms linear;
+      font-family: var(--font-data);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .dom-head #dom-label.neutral {
+      color: #cfd9e3;
+    }
+    .dom-track {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #273a53;
+      background: #101d30;
+      transition: border-color 120ms linear, box-shadow 120ms linear;
+    }
+    .dom-track.neutral {
+      border-color: #43546d;
+      box-shadow: inset 0 0 0 1px rgba(207, 217, 227, 0.15);
+    }
+    .dom-buy, .dom-sell {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      transition: width 140ms linear;
+    }
+    .dom-buy {
+      left: 0;
+      width: 50%;
+      background: linear-gradient(90deg, #1e5d40, #00b868);
+      transition: width 140ms linear, opacity 120ms linear;
+    }
+    .dom-sell {
+      right: 0;
+      width: 50%;
+      background: linear-gradient(90deg, #d03540, #7b1f2f);
+      transition: width 140ms linear, opacity 120ms linear;
+    }
+    .dom-track.neutral .dom-buy,
+    .dom-track.neutral .dom-sell {
+      opacity: 0.72;
+    }
+    .dom-mid {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: calc(50% - 1px);
+      width: 2px;
+      background: #dfe9f2;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="tape-page">
+    <div class="tape-bar" id="tape-bar">
+      <span>Symbol</span>
+      <label>
+        <input id="sym" type="text" value="BTC-USD" size="10" style="font:inherit;background:#0f1a2b;border:1px solid #24374f;color:#e6edf3;padding:4px 8px;border-radius:4px;" />
+      </label>
+      <span id="bea-status">Connecting…</span>
+      <div class="badges-wrap collapsed" id="badges-wrap">
+        <button id="badges-toggle" class="badge-toggle" type="button" aria-expanded="false" aria-controls="badges-pop">
+          Sources
+          <span class="chev">▾</span>
+        </button>
+        <div class="badges-pop" id="badges-pop">
+          <div id="source-badges" class="badge-row"></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings collapsed" id="settings-panel">
+      <div class="settings-head">
+        <span class="settings-title">TAPE SETTINGS</span>
+        <button id="settings-toggle" class="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-body">
+          Show
+          <span class="chev">▾</span>
+        </button>
+      </div>
+      <div id="settings-body" class="settings-body">
+        <div class="settings-row">
+          <span>Threshold</span>
+          <input id="thr-slider" type="range" min="50000" max="5000000" step="50000" value="400000" />
+          <span id="thr-value" class="threshold">$400K</span>
+        </div>
+        <div class="settings-row" style="margin-top:8px">
+          <span>Mode</span>
+          <button class="modebtn active" data-mode="all">ALL</button>
+          <button class="modebtn" data-mode="perp">PERP</button>
+          <button class="modebtn" data-mode="spot">SPOT</button>
+          <span style="margin-left:10px">Source</span>
+          <button class="srcbtn active" data-srcmode="all">ALL SOURCES</button>
+          <button class="srcbtn" data-srcmode="bea">BEA ONLY</button>
+          <span style="margin-left:10px">Tape</span>
+          <button class="aggbtn" data-agg="raw">RAW</button>
+          <button class="aggbtn active" data-agg="burst">BURST</button>
+        </div>
+        <div class="settings-row" style="margin-top:8px">
+          <button class="preset" data-v="200000">$200K</button>
+          <button class="preset active" data-v="400000">$400K</button>
+          <button class="preset" data-v="1000000">$1M</button>
+          <button class="preset" data-v="3000000">$3M</button>
+        </div>
+        <div class="settings-row tiny" style="margin-top:8px">
+          <span>Burst ms</span>
+          <input id="burst-ms" type="range" min="60" max="500" step="20" value="220" style="width:min(220px,45vw)" />
+          <span id="burst-ms-val">220ms</span>
+          <span>Merge bps</span>
+          <input id="burst-bps" type="range" min="1" max="8" step="0.5" value="2" style="width:min(180px,40vw)" />
+          <span id="burst-bps-val">2.0</span>
+        </div>
+        <div class="marks">
+          <span>$50K</span><span>$450K</span><span>$1.25M</span><span>$2.5M</span><span>$5M</span>
+        </div>
+      </div>
+    </div>
+    <div class="tape-spacer" aria-hidden="true"></div>
+    <div id="tape-wrap">
+      <canvas id="tape-canvas"></canvas>
+    </div>
+    <footer class="tape-foot">
+      <div id="foot-buy" class="buy">Buy $0.0M</div>
+      <div id="foot-cvd" class="cvd">5m CVD +$0.0M</div>
+      <div id="foot-sell" class="sell">Sell $0.0M</div>
+    </footer>
+    <div class="dom-wrap">
+      <div class="dom-head">
+        <span>5m Side Dominance</span>
+        <span id="dom-label">50 / 50</span>
+      </div>
+      <div id="dom-track" class="dom-track" aria-hidden="true">
+        <div id="dom-buy" class="dom-buy"></div>
+        <div id="dom-sell" class="dom-sell"></div>
+        <div class="dom-mid"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import TapeRenderer, { apiUrl } from "./tape.js";
+    const canvas = document.getElementById("tape-canvas");
+    const statusEl = document.getElementById("bea-status");
+    const symInput = document.getElementById("sym");
+    const slider = document.getElementById("thr-slider");
+    const thrValue = document.getElementById("thr-value");
+    const badgesEl = document.getElementById("source-badges");
+    const badgesWrap = document.getElementById("badges-wrap");
+    const badgesToggle = document.getElementById("badges-toggle");
+    const settingsPanel = document.getElementById("settings-panel");
+    const settingsToggle = document.getElementById("settings-toggle");
+    const burstMsEl = document.getElementById("burst-ms");
+    const burstMsValEl = document.getElementById("burst-ms-val");
+    const burstBpsEl = document.getElementById("burst-bps");
+    const burstBpsValEl = document.getElementById("burst-bps-val");
+    const modeBtns = Array.from(document.querySelectorAll(".modebtn"));
+    const srcBtns = Array.from(document.querySelectorAll(".srcbtn"));
+    const aggBtns = Array.from(document.querySelectorAll(".aggbtn"));
+    const presetBtns = Array.from(document.querySelectorAll(".preset"));
+    let selectedMarket = "all";
+    let selectedAgg = "burst";
+    let selectedSources = [];
+    let selectedSourceMode = "all";
+    const fmtUsd = (v) => {
+      const n = Number(v) || 0;
+      if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0)}M`;
+      if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
+      return `$${n}`;
+    };
+    const shortSourceLabel = (k) => {
+      const s = String(k || "").toLowerCase();
+      if (s.includes("binance")) return "BIN";
+      if (s.includes("bybit")) return "BYB";
+      if (s.includes("okx")) return "OKX";
+      if (s.includes("coinbase")) return "CBS";
+      if (s.includes("kraken")) return "KRK";
+      if (s.includes("bitstamp")) return "BSP";
+      if (s.includes("bitmex")) return "BMX";
+      if (s.includes("deribit")) return "DRB";
+      if (s.includes("hyperliquid")) return "HYP";
+      if (s.includes("bitfinex")) return "BFX";
+      if (s.includes("btcc")) return "BTC";
+      if (s.includes("bea")) return "BEA";
+      return s.slice(0, 3).toUpperCase();
+    };
+    const sourceToExchange = (k) =>
+      String(k || "")
+        .replace("_linear", "_perps")
+        .replace("okx_swap", "okx_perps")
+        .replace("bitmex", "bitmex_perps")
+        .replace("deribit", "deribit_perps");
+    const renderer = new TapeRenderer(canvas, {
+      footerBuy: document.getElementById("foot-buy"),
+      footerCvd: document.getElementById("foot-cvd"),
+      footerSell: document.getElementById("foot-sell"),
+      dominanceTrackEl: document.getElementById("dom-track"),
+      dominanceBuyEl: document.getElementById("dom-buy"),
+      dominanceSellEl: document.getElementById("dom-sell"),
+      dominanceLabelEl: document.getElementById("dom-label"),
+      minPrintUsd: Number(slider.value) || 400000,
+      aggregateMode: selectedAgg,
+      burstWindowMs: Number(burstMsEl?.value || 220),
+      burstPriceBps: Number(burstBpsEl?.value || 2),
+      onBeaStatus: (ok, msg) => {
+        statusEl.className = ok ? "ok" : "err";
+        statusEl.textContent = msg;
+      },
+    });
+    function syncThresholdUI(v) {
+      thrValue.textContent = fmtUsd(v);
+      for (const b of presetBtns) b.classList.toggle("active", Number(b.dataset.v) === Number(v));
+    }
+    function syncModeUI() {
+      for (const b of modeBtns) b.classList.toggle("active", b.dataset.mode === selectedMarket);
+    }
+    function syncAggUI() {
+      for (const b of aggBtns) b.classList.toggle("active", b.dataset.agg === selectedAgg);
+    }
+    function syncSrcUI() {
+      for (const b of srcBtns) b.classList.toggle("active", b.dataset.srcmode === selectedSourceMode);
+    }
+    function setThreshold(v) {
+      const n = Number(v) || 400000;
+      slider.value = String(n);
+      renderer.setMinPrintUsd(n);
+      syncThresholdUI(n);
+    }
+    function syncSettingsToggle() {
+      const collapsed = settingsPanel?.classList.contains("collapsed");
+      if (!settingsToggle) return;
+      settingsToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      settingsToggle.childNodes[0].nodeValue = collapsed ? "Show" : "Hide";
+    }
+    function syncBadgesToggle() {
+      const collapsed = badgesWrap?.classList.contains("collapsed");
+      if (!badgesToggle) return;
+      badgesToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      badgesToggle.childNodes[0].nodeValue = collapsed ? "Sources" : "Hide Sources";
+    }
+    function go() {
+      const symbol = (symInput.value || "BTC-USD").trim() || "BTC-USD";
+      if (typeof window.EventSource === "function") {
+        renderer.startBeaStream({
+          endpoint: "/api/tape/stream",
+          symbol,
+          market: selectedMarket,
+          sources: selectedSources,
+          limit: 1000,
+          streamMs: 120,
+        });
+      } else {
+        renderer.startBeaFeed({
+          endpoint: "api/tape/live",
+          symbol,
+          market: selectedMarket,
+          sources: selectedSources,
+          limit: 1000,
+          pollMs: 250,
+        });
+      }
+    }
+    async function refreshSourceBadges() {
+      try {
+        const r = await fetch(apiUrl("api/sources/status"));
+        if (!r.ok) return;
+        const d = await r.json();
+        const src = d.sources || {};
+        const keys = Object.keys(src).sort();
+        badgesEl.innerHTML = "";
+        for (const k of keys) {
+          const s = src[k];
+          const b = document.createElement("span");
+          const age = s.last_ok_age_s;
+          let cls = "badge ";
+          if (!s.enabled) cls += "off";
+          else if (s.connected && (age == null || age <= 3)) cls += "ok";
+          else if (s.connected || (age != null && age <= 12)) cls += "stale";
+          else cls += "err";
+          b.className = cls;
+          const ageTxt = age == null ? "na" : `${age}s`;
+          const score = Number(s.quality_score ?? 0);
+          b.textContent = `${shortSourceLabel(k)} ${ageTxt} ${Math.round(score)}`;
+          const mps = Number(s.msg_per_s_10s ?? 0);
+          const lag = Number(s.lag_ewma_ms ?? 0);
+          const drops = Number(s.anomaly_drops ?? 0);
+          const rec = Number(s.reconnects ?? 0);
+          b.title = `score=${score} mps=${mps} lag=${lag}ms rec=${rec} drops=${drops}` + (s.last_error ? ` | ${s.last_error}` : "");
+          const exch = sourceToExchange(k);
+          b.dataset.exch = exch;
+          b.style.cursor = "pointer";
+          const activeSet = selectedSourceMode === "bea" ? ["bea"] : selectedSources;
+          if (activeSet.length && !activeSet.includes(exch) && !activeSet.includes(k)) b.style.opacity = "0.45";
+          b.addEventListener("click", () => {
+            if (selectedSourceMode === "bea") return;
+            if (selectedSources.includes(exch)) selectedSources = selectedSources.filter((x) => x !== exch);
+            else selectedSources.push(exch);
+            go();
+          });
+          badgesEl.appendChild(b);
+        }
+      } catch {}
+    }
+    symInput.addEventListener("change", go);
+    if (settingsToggle && settingsPanel) {
+      settingsToggle.addEventListener("click", () => {
+        settingsPanel.classList.toggle("collapsed");
+        syncSettingsToggle();
+      });
+      syncSettingsToggle();
+    }
+    if (badgesToggle && badgesWrap) {
+      badgesToggle.addEventListener("click", () => {
+        badgesWrap.classList.toggle("collapsed");
+        syncBadgesToggle();
+      });
+      syncBadgesToggle();
+    }
+    slider.addEventListener("input", () => setThreshold(slider.value));
+    if (burstMsEl) {
+      burstMsEl.addEventListener("input", () => {
+        const v = Number(burstMsEl.value || 220);
+        burstMsValEl.textContent = `${v}ms`;
+        renderer.setBurstWindowMs(v);
+      });
+      burstMsValEl.textContent = `${Number(burstMsEl.value || 220)}ms`;
+    }
+    if (burstBpsEl) {
+      burstBpsEl.addEventListener("input", () => {
+        const v = Number(burstBpsEl.value || 2);
+        burstBpsValEl.textContent = v.toFixed(1);
+        renderer.setBurstPriceBps(v);
+      });
+      burstBpsValEl.textContent = Number(burstBpsEl.value || 2).toFixed(1);
+    }
+    for (const b of presetBtns) {
+      b.addEventListener("click", () => setThreshold(b.dataset.v));
+    }
+    for (const b of modeBtns) {
+      b.addEventListener("click", () => {
+        selectedMarket = b.dataset.mode || "all";
+        syncModeUI();
+        go();
+      });
+    }
+    for (const b of srcBtns) {
+      b.addEventListener("click", () => {
+        selectedSourceMode = b.dataset.srcmode === "bea" ? "bea" : "all";
+        if (selectedSourceMode === "bea") {
+          selectedSources = ["bea"];
+        } else {
+          selectedSources = [];
+        }
+        syncSrcUI();
+        go();
+      });
+    }
+    for (const b of aggBtns) {
+      b.addEventListener("click", () => {
+        selectedAgg = b.dataset.agg === "raw" ? "raw" : "burst";
+        renderer.setAggregationMode(selectedAgg);
+        syncAggUI();
+      });
+    }
+    setThreshold(slider.value);
+    syncModeUI();
+    syncSrcUI();
+    syncAggUI();
+    go();
+    setInterval(refreshSourceBadges, 2000);
+    refreshSourceBadges();
+  </script>
+</body>
+</html>
